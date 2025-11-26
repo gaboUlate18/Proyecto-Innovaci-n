@@ -3,8 +3,6 @@ from google import genai
 from google.genai.errors import APIError
 import os
 import datetime
-import pandas as pd
-import io
 
 # --- A. DICCIONARIO DE TEXTOS (Multilenguaje) ---
 
@@ -23,9 +21,9 @@ TEXTOS = {
         "restrictions_subheader": "🗓️ Restricciones de Días",
         "block_checkbox": "Activar Bloqueo de Días Específicos",
         "block_help": "Si se activa, aparecerá una opción en la pantalla principal para seleccionar días libres.",
-        "ai_subheader": "🧠 Motor de Planificación",
-        "ai_flexibility": "🌡️ Flexibilidad de la IA",
-        # "restart_button": "🔄 Reiniciar Todas las Entradas", <-- ELIMINADO
+        # "ai_subheader": "🧠 Motor de Planificación", <--- ELIMINADO
+        # "ai_flexibility": "🌡️ Flexibilidad de la IA", <--- ELIMINADO
+        # "ai_temperature_help": "0.0 = Plan estricto. 1.0 = Plan creativo.", <--- ELIMINADO
         "resources_title": "Recursos y Horarios",
         "hours_input": "⏰ Horas de Estudio Diarias Disponibles:",
         "hours_help": "Máximo de horas que puedes dedicar por día.",
@@ -45,8 +43,6 @@ TEXTOS = {
         "spinner_msg": "✨ Cargando... Generando la estrategia óptima con IA. Esto puede tardar unos segundos.",
         "result_header": "📋 Plan de Estudio Generado",
         "result_success": "✅ Planificación Generada con Éxito",
-        "download_caption": "Asegúrate de que el plan se haya generado como una tabla Markdown antes de descargar.",
-        "download_button": "📥 Descargar CSV",
         "block_multiselect": "🚫 ¿Qué días de la semana deseas bloquear completamente para descanso?",
         "block_multiselect_help": "Los días seleccionados serán excluidos de la planificación de tareas.",
         "days": ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
@@ -56,7 +52,6 @@ TEXTOS = {
         "error_api": "🚨 Error de API de Gemini: ",
         "error_unexpected": "🚨 Error inesperado: ",
         "error_key": "🚨 La clave GEMINI_API_KEY no está configurada. Por favor, revisa los secretos de tu plataforma de hosting.",
-        "ai_temperature_help": "0.0 = Plan estricto. 1.0 = Plan creativo.",
         "task_placeholder": "Tarea Pendiente "
     },
     "en": {
@@ -73,9 +68,9 @@ TEXTOS = {
         "restrictions_subheader": "🗓️ Day Restrictions",
         "block_checkbox": "Activate Specific Day Blocking",
         "block_help": "If activated, an option will appear on the main screen to select free days.",
-        "ai_subheader": "🧠 Planning Engine",
-        "ai_flexibility": "🌡️ AI Flexibility",
-        # "restart_button": "🔄 Reset All Inputs", <-- ELIMINADO
+        # "ai_subheader": "🧠 Planning Engine", <--- ELIMINADO
+        # "ai_flexibility": "🌡️ AI Flexibility", <--- ELIMINADO
+        # "ai_temperature_help": "0.0 = Strict and predictable plan. 1.0 = Creative plan.", <--- ELIMINADO
         "resources_title": "Resources and Schedule",
         "hours_input": "⏰ Daily Study Hours Available:",
         "hours_help": "Maximum hours you can dedicate per day.",
@@ -95,8 +90,6 @@ TEXTOS = {
         "spinner_msg": "✨ Loading... Generating the optimal strategy with AI. This may take a few seconds.",
         "result_header": "📋 Generated Study Plan",
         "result_success": "✅ Planning Generated Successfully",
-        "download_caption": "Ensure the plan has generated as a Markdown table before downloading.",
-        "download_button": "📥 Download CSV",
         "block_multiselect": "🚫 Which days of the week do you want to completely block for rest?",
         "block_multiselect_help": "Selected days will be excluded from task planning.",
         "days": ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
@@ -106,7 +99,6 @@ TEXTOS = {
         "error_api": "🚨 Gemini API Error: ",
         "error_unexpected": "🚨 Unexpected Error: ",
         "error_key": "🚨 The GEMINI_API_KEY is not configured. Please check your hosting platform secrets.",
-        "ai_temperature_help": "0.0 = Strict and predictable plan. 1.0 = Creative plan.",
         "task_placeholder": "Pending Task "
     }
 }
@@ -132,7 +124,7 @@ PALETA_OSCURA = {
 
 # Configuración de la página (se usa el título del diccionario)
 st.set_page_config(
-    page_title=TEXTOS["es"]["page_title"], # Se usa español por defecto para el config de la página
+    page_title=TEXTOS["es"]["page_title"], 
     page_icon="🗓️",
     layout="centered",
     initial_sidebar_state="auto"
@@ -147,7 +139,7 @@ if 'idioma' not in st.session_state:
     st.session_state.idioma = 'es'
 
 with st.sidebar:
-    st.header(TEXTOS["es"]["sidebar_header"]) # Usamos español en el header fijo del sidebar
+    st.header(TEXTOS["es"]["sidebar_header"]) 
 
     ## 0. SELECTOR DE IDIOMA
     st.subheader(TEXTOS["es"]["lang_subheader"])
@@ -176,27 +168,11 @@ with st.sidebar:
     )
     st.markdown("---")
 
-    ## 3. MOTOR DE PLANIFICACIÓN (Ajustes de la IA)
-    st.subheader(T["ai_subheader"])
-    
-    ia_temperature = st.slider(
-        T["ai_flexibility"], 
-        min_value=0.0, 
-        max_value=1.0, 
-        value=0.5, 
-        step=0.1,
-        help=T["ai_temperature_help"]
-    )
-    
+    ## 3. MOTOR DE PLANIFICACIÓN (Ajustes de la IA) - Ahora solo muestra el título
+    st.subheader("🧠 Motor de Planificación") # Dejamos el subheader
+    # La flexibilidad de la IA (temperature slider) ha sido eliminada.
     st.markdown("---")
     
-    # Control de Reinicio (ELIMINADO)
-    # if st.button(T["restart_button"], use_container_width=True):
-    #     if 'tasks' in st.session_state:
-    #         st.session_state.tasks = [{'id': 1}]
-    #     st.session_state.resultado_ia_raw = None
-    #     st.experimental_rerun()
-
 # --- FIN DE BARRA LATERAL ---
 
 # 4. Lógica de Temas y CSS
@@ -250,6 +226,9 @@ st.markdown(dynamic_css, unsafe_allow_html=True)
 
 # --- E. FUNCIONES DE LÓGICA (Se usa T para textos) ---
 
+# Variable de temperatura fijada (ya no es un slider)
+ia_temperature = 0.5 
+
 # Inicialización del cliente de Gemini
 try:
     client = genai.Client()
@@ -259,43 +238,8 @@ except Exception:
 
 MODEL_NAME = 'gemini-2.5-flash'
 
-# Función auxiliar para convertir el texto Markdown a un DataFrame de Pandas/CSV
-def markdown_to_csv(markdown_text):
-    """
-    Convierte la tabla Markdown (la primera que encuentra) a un CSV.
-    (La lógica interna se mantiene igual, ya que Pandas no depende del idioma).
-    """
-    lines = markdown_text.strip().split('\n')
-    
-    table_start_index = -1
-    for i, line in enumerate(lines):
-        if '|' in line and ('Día' in line or 'Day' in line): # Aceptamos ambos idiomas
-            table_start_index = i
-            break
-            
-    if table_start_index == -1:
-        return pd.DataFrame().to_csv(index=False) 
 
-    data_lines = []
-    
-    for i in range(table_start_index, len(lines)):
-        line = lines[i].strip()
-        if line.startswith('|') and '---' not in line:
-            cleaned_line = [item.strip() for item in line.split('|') if item.strip()]
-            if cleaned_line:
-                data_lines.append(cleaned_line)
-    
-    if len(data_lines) < 2:
-        return pd.DataFrame().to_csv(index=False)
-        
-    df = pd.DataFrame(data_lines[1:], columns=data_lines[0])
-    
-    buffer = io.StringIO()
-    df.to_csv(buffer, index=False)
-    return buffer.getvalue()
-
-
-# --- 1. PROMPT MAESTRO (ACTUALIZADO CON IDIOMA) ---
+# --- 1. PROMPT MAESTRO (SIN CAMBIOS EN EL CONTENIDO) ---
 def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, idioma):
     """Ensambla el prompt con la lógica de CoT, restricciones y formato de salida."""
     
@@ -437,6 +381,7 @@ if st.button(T["generate_button"], type="primary", use_container_width=True):
             task_list_text += f"Tarea {i + 1}: {t['tarea']} (Límite: {t['fechaLimite']}, Dificultad: {t['dificultad']}/10, Energía: {t['energia']})\n"
 
         # Ensamblar y Llamar a Gemini con las variables de la barra lateral
+        # Se usa la temperatura fija: ia_temperature = 0.5
         prompt = ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, st.session_state.idioma)
         
         with st.spinner(T["spinner_msg"]):
@@ -446,22 +391,6 @@ if st.button(T["generate_button"], type="primary", use_container_width=True):
         if resultado_ia:
             st.header(T["result_header"])
             st.success(T["result_success"]) 
-            
-            # --- MOSTRAR BOTÓN DE DESCARGA JUNTO A LA RESPUESTA ---
-            col_msg, col_download = st.columns([3, 1])
-            with col_msg:
-                 st.caption(T["download_caption"])
-            
-            with col_download:
-                csv_data = markdown_to_csv(resultado_ia)
-                st.download_button(
-                    label=T["download_button"],
-                    data=csv_data,
-                    file_name='plan_dinamico.csv',
-                    mime='text/csv',
-                    use_container_width=True
-                )
-            # --- FIN DE BOTÓN DE DESCARGA ---
             
             st.markdown("---")
             st.markdown(resultado_ia)
