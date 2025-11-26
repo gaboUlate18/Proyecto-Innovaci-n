@@ -4,34 +4,42 @@ from google.genai.errors import APIError
 import os
 import datetime
 
-# --- A. CONFIGURACIÓN VISUAL (Tematización sin TOML) ---
+# --- A. CONFIGURACIÓN VISUAL (DARK MODE y Tematización) ---
 
-# 1. Aplica un fondo limpio usando CSS inyectado
-Fondo_Gris_Claro = """
+# Paleta Dark Mode: Negro (#121212), Gris Oscuro (#1E1E1E), Azul Acero (#BB86FC)
+Dark_Mode_CSS = """
 <style>
-/* Color de fondo para toda la página */
+/* 1. Fondo principal y contenedores */
 .stApp {
-    background-color: #F8F9FA; /* Gris Claro Limpio */
-}
-/* Color para los contenedores principales (tarjetas) */
-.stContainer, .stExpander {
-    background-color: white !important; /* Fondo blanco dentro de las cajas */
-    border-radius: 10px; 
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Sombra suave */
-    padding: 20px;
-}
-/* Estilo para los encabezados de la tabla generada por la IA */
-table th {
-    background-color: #007BFF; /* Azul Eficiencia */
+    background-color: #121212; /* Fondo Negro Oscuro */
     color: white;
 }
-/* Color primario del botón de generar (aunque Streamlit tiene su propio primary) */
-button.stButton>div>button {
-    background-color: #007BFF; 
+/* 2. Contenedores y Expander (elementos tipo "tarjeta") */
+.stContainer, .stExpander {
+    background-color: #1E1E1E !important; /* Gris Oscuro Suave */
+    border-radius: 10px; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); /* Sombra para profundidad */
+    padding: 20px;
+    color: white;
+}
+/* 3. Títulos y texto (asegura el contraste) */
+h1, h2, h3, h4, label, p, .stMarkdown {
+    color: white !important;
+}
+/* 4. Estilo de los encabezados de la tabla generada por la IA */
+table th {
+    background-color: #BB86FC; /* Color de acento púrpura */
+    color: black;
+}
+/* 5. Estilo de los Inputs (para que se vean bien en fondo oscuro) */
+div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-baseweb="textarea"] > div {
+    background-color: #2D2D2D !important;
+    border-color: #444444 !important;
+    color: white !important;
 }
 </style>
 """
-st.markdown(Fondo_Gris_Claro, unsafe_allow_html=True)
+st.markdown(Dark_Mode_CSS, unsafe_allow_html=True)
 
 
 # Configuración de la página
@@ -54,8 +62,9 @@ except Exception:
 
 MODEL_NAME = 'gemini-2.5-flash'
 
+# --- 1. PROMPT MAESTRO (INCLUYE ANÁLISIS DE TÉCNICA) ---
 def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento):
-    """Ensambla el prompt con la lógica de Cadena de Pensamiento (CoT)."""
+    """Ensambla el prompt con la lógica de Cadena de Pensamiento (CoT) y la recomendación de técnica."""
     return f"""
 Actúa como un Experto en Planificación y Optimización de Procesos Académicos. Tu objetivo es crear un plan de estudio semanal que optimice la eficiencia y minimice el estrés para el estudiante.
 
@@ -74,9 +83,13 @@ Actúa como un Experto en Planificación y Optimización de Procesos Académicos
 
 **OUTPUT REQUERIDO:**
 1. Genera un plan de estudio DÍA POR DÍA para la próxima semana en formato **Tabla Markdown**. La tabla debe tener las columnas: Día, Tarea (Nombre y Fecha Límite), Horario, Enfoque (Bloque de 1.5-2h).
-2. Después de la tabla, proporciona un 'Comentario Crítico' de no más de 3 líneas.
+2. **NUEVO FACTOR SORPRESA:** Después de la tabla, proporciona un 'Asesoramiento de Productividad' con el siguiente formato:
+    * **Técnica Recomendada:** [Nombre de la técnica, ej: Pomodoro, Feynman, Repetición Espaciada]
+    * **Justificación de Uso:** [Una explicación de 2 líneas sobre por qué esta técnica es ideal para el momento del día ({mejor_momento}) y el tipo de tareas.]
+3. Finaliza con un 'Comentario Crítico' de no más de 3 líneas.
 """
 
+# --- 2. FUNCIÓN DE LLAMADA A LA API ---
 @st.cache_data(show_spinner=False)
 def llamar_gemini(prompt):
     """Llama a la API de Gemini y maneja los errores."""
@@ -95,7 +108,7 @@ def llamar_gemini(prompt):
         st.error(f"🚨 Error inesperado: {e}")
         return None
 
-# --- C. INTERFAZ DE STREAMLIT ---
+# --- C. INTERFAZ DE STREAMLIT (Con Estilo Oscuro) ---
 
 st.title("🗓️ Planificador Dinámico con IA")
 st.markdown("Optimiza tu tiempo de estudio con un plan semanal basado en tus recursos y la dificultad de tus tareas.")
@@ -170,5 +183,5 @@ if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_widt
         # Mostrar Resultado
         if resultado_ia:
             st.header("📋 Plan de Estudio Generado")
-            st.success("✅ Planificación Generada con Éxito") # Usará el Verde Productivo
-            st.markdown(resultado_ia) # El CSS inyectado estiliza la tabla Markdown
+            st.success("✅ Planificación Generada con Éxito") 
+            st.markdown(resultado_ia)
