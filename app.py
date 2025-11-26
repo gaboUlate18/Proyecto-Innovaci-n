@@ -48,7 +48,7 @@ with st.sidebar:
 
     ## 2. RESTRICCIONES DE TIEMPO
 
-    # CAMBIO AQUÍ: Checkbox para activar la función
+    # Checkbox para activar la función de bloqueo
     st.subheader("🗓️ Restricciones de Días")
     activar_bloqueo_dias = st.checkbox(
         "Activar Bloqueo de Días Específicos",
@@ -75,29 +75,9 @@ with st.sidebar:
     )
     st.markdown("---")
     
-    ## 4. GESTIÓN DE SALIDA Y EXPORTACIÓN
-    st.subheader("🗂️ Gestión de Flujo")
+    ## (LA SECCIÓN 4 DE GESTIÓN DE FLUJO FUE ELIMINADA)
     
-    # Control de Exportación (solo se muestra después de generar)
-    if st.session_state.resultado_ia_raw:
-        st.markdown("")
-        def convert_to_txt(markdown_text):
-            return (
-                markdown_text.replace("*", "")
-                             .replace("|", " | ")
-                             .replace("---", "")
-                             .strip()
-            )
-
-        st.download_button(
-            label="📥 Descargar Plan (TXT)",
-            data=convert_to_txt(st.session_state.resultado_ia_raw),
-            file_name='plan_dinamico.txt',
-            mime='text/plain',
-            use_container_width=True
-        )
-    
-    # Control de Reinicio
+    # Control de Reinicio (Movido al final del sidebar)
     if st.button("🔄 Reiniciar Todas las Entradas", use_container_width=True):
         if 'tasks' in st.session_state:
             st.session_state.tasks = [{'id': 1}]
@@ -237,7 +217,7 @@ with st.expander("Recursos y Horarios", expanded=True):
             help="Los días seleccionados serán excluidos de la planificación de tareas."
         )
     else:
-        # Si no está activado, se asume que no hay días bloqueados, o puedes establecer un valor por defecto si lo deseas
+        # Si no está activado, la lista se queda vacía, lo cual se pasa al prompt.
         dias_bloqueados = []
         
 
@@ -300,5 +280,5 @@ if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_widt
             
             st.session_state.resultado_ia_raw = resultado_ia
             
-            # Forzar el re-renderizado de la barra lateral para mostrar el botón de descarga
+            # Forzar el re-renderizado de la barra lateral para cualquier lógica futura
             st.experimental_rerun()
