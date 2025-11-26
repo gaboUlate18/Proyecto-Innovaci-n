@@ -25,7 +25,7 @@ TEXTOS = {
         "block_help": "Si se activa, aparecerá una opción en la pantalla principal para seleccionar días libres.",
         "ai_subheader": "🧠 Motor de Planificación",
         "ai_flexibility": "🌡️ Flexibilidad de la IA",
-        "restart_button": "🔄 Reiniciar Todas las Entradas",
+        # "restart_button": "🔄 Reiniciar Todas las Entradas", <-- ELIMINADO
         "resources_title": "Recursos y Horarios",
         "hours_input": "⏰ Horas de Estudio Diarias Disponibles:",
         "hours_help": "Máximo de horas que puedes dedicar por día.",
@@ -75,7 +75,7 @@ TEXTOS = {
         "block_help": "If activated, an option will appear on the main screen to select free days.",
         "ai_subheader": "🧠 Planning Engine",
         "ai_flexibility": "🌡️ AI Flexibility",
-        "restart_button": "🔄 Reset All Inputs",
+        # "restart_button": "🔄 Reset All Inputs", <-- ELIMINADO
         "resources_title": "Resources and Schedule",
         "hours_input": "⏰ Daily Study Hours Available:",
         "hours_help": "Maximum hours you can dedicate per day.",
@@ -190,12 +190,12 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Control de Reinicio 
-    if st.button(T["restart_button"], use_container_width=True):
-        if 'tasks' in st.session_state:
-            st.session_state.tasks = [{'id': 1}]
-        st.session_state.resultado_ia_raw = None
-        st.experimental_rerun()
+    # Control de Reinicio (ELIMINADO)
+    # if st.button(T["restart_button"], use_container_width=True):
+    #     if 'tasks' in st.session_state:
+    #         st.session_state.tasks = [{'id': 1}]
+    #     st.session_state.resultado_ia_raw = None
+    #     st.experimental_rerun()
 
 # --- FIN DE BARRA LATERAL ---
 
