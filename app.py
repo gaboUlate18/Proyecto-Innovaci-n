@@ -3,7 +3,7 @@ from google import genai
 from google.genai.errors import APIError
 import os
 import datetime
-import pandas as pd # <-- Se necesita Pandas para la conversión a CSV
+import pandas as pd # Se necesita Pandas para la conversión a CSV
 import io # Para manejar el flujo de bytes de CSV
 
 # --- A. CONFIGURACIÓN VISUAL (Tematización Dinámica) ---
@@ -33,7 +33,7 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# --- B. BARRA LATERAL (st.sidebar) ---
+# --- B. FUNCIONES AUXILIARES ---
 
 # Se inicializa el estado de la aplicación
 if 'resultado_ia_raw' not in st.session_state:
@@ -43,11 +43,10 @@ if 'resultado_ia_raw' not in st.session_state:
 def markdown_to_csv(markdown_text):
     """
     Convierte la tabla Markdown (la primera que encuentra) a un CSV.
-    Esto es una implementación simplificada y puede fallar si el formato de la IA cambia.
     """
     lines = markdown_text.strip().split('\n')
     
-    # Buscar el inicio de la tabla (generalmente la línea de encabezado)
+    # Buscar el inicio de la tabla
     table_start_index = -1
     for i, line in enumerate(lines):
         if '|' in line and 'Día' in line:
@@ -55,32 +54,29 @@ def markdown_to_csv(markdown_text):
             break
             
     if table_start_index == -1:
-        return pd.DataFrame().to_csv(index=False) # Retorna vacío si no encuentra tabla
+        return pd.DataFrame().to_csv(index=False) 
 
-    # Las líneas relevantes son: Encabezado y Datos (saltando la línea separadora '---')
     data_lines = []
     
     # Colectar encabezado y datos
     for i in range(table_start_index, len(lines)):
         line = lines[i].strip()
-        # Excluir la línea de separación de Markdown (e.g., |---|---|)
         if line.startswith('|') and '---' not in line:
-            # Limpiar la línea y dividir por |
             cleaned_line = [item.strip() for item in line.split('|') if item.strip()]
             if cleaned_line:
                 data_lines.append(cleaned_line)
     
-    if not data_lines:
+    if len(data_lines) < 2:
         return pd.DataFrame().to_csv(index=False)
         
-    # La primera línea es el encabezado, el resto son datos
     df = pd.DataFrame(data_lines[1:], columns=data_lines[0])
     
-    # Convertir a CSV en memoria (IO buffer)
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
     return buffer.getvalue()
 
+
+# --- C. BARRA LATERAL (st.sidebar) ---
 
 with st.sidebar:
     st.header("⚙️ Ajustes Avanzados")
@@ -111,28 +107,9 @@ with st.sidebar:
         help="0.0 = Plan estricto. 1.0 = Plan creativo."
     )
     
-    # NUEVO CONTROL DE EXPORTACIÓN (El botón solo aparece si hay datos)
-    if st.session_state.resultado_ia_raw:
-        st.markdown("---")
-        st.subheader("⬇️ Exportar Plan")
-
-        csv_data = markdown_to_csv(st.session_state.resultado_ia_raw)
-        
-        # Botón de Descarga
-        st.download_button(
-            label="📥 Descargar CSV (compatible con Excel)",
-            data=csv_data,
-            file_name='plan_dinamico.csv',
-            mime='text/csv',
-            use_container_width=True
-        )
-        # Nota: Las opciones de PDF/Imagen requerirían librerías adicionales y lógica compleja.
-        # st.button("Descargar PDF (Requiere librerías)", disabled=True) 
-        # st.button("Descargar Imagen (Requiere librerías)", disabled=True) 
-        
     st.markdown("---")
     
-    # Control de Reinicio (Movido al final del sidebar)
+    # Control de Reinicio 
     if st.button("🔄 Reiniciar Todas las Entradas", use_container_width=True):
         if 'tasks' in st.session_state:
             st.session_state.tasks = [{'id': 1}]
@@ -141,15 +118,31 @@ with st.sidebar:
 
 # --- FIN DE BARRA LATERAL ---
 
-# 2. Asignación de Paleta de Tema (Basado en la selección del sidebar)
+# 4. Lógica de Temas y CSS
+
+# Asignación de Paleta de Tema (Basado en la selección del sidebar)
 if theme_choice == "Modo Claro ☀️":
     PALETA = PALETA_CLARA
 else:
     PALETA = PALETA_OSCURA
 
-# 3. Inyección de CSS (Se mantiene para la tematización dinámica)
+# 5. Inyección de CSS (INCLUYE OVERRIDE PARA TEXTO BLANCO EN MODO CLARO)
+white_text_override = ""
+if theme_choice == "Modo Claro ☀️":
+    # Forzar color blanco para etiquetas en la barra lateral cuando el fondo de la app es claro
+    # (El sidebar de Streamlit en modo claro tiene un color de fondo que requiere texto claro)
+    white_text_override = """
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stButton > button {
+        color: white !important;
+        /* Texto del botón Reiniciar: el texto de los botones normales suele ser el color del texto general. 
+        Lo forzamos a blanco para asegurar visibilidad en el sidebar claro/gris. */
+    }
+    """
+
 dynamic_css = f"""
 <style>
+/* Estilos generales */
 .stApp {{ background-color: {PALETA['fondo_principal']}; }}
 .stContainer, .stExpander, div[data-testid="stExpander"] {{
     background-color: {PALETA['fondo_secundario']} !important; 
@@ -158,6 +151,7 @@ dynamic_css = f"""
     padding: 20px;
 }}
 h1, h2, h3, h4 {{ color: {PALETA['texto_acento']} !important; }}
+/* Color general de etiquetas y texto */
 label, p, .stMarkdown, .st-ag {{ color: {PALETA['texto_general']} !important; }}
 table th {{ background-color: {PALETA['acento_tabla']}; color: {PALETA_CLARA['fondo_principal']} !important; }}
 div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-baseweb="textarea"] > div, div[data-testid="stExpander"] > div:first-child {{
@@ -165,15 +159,18 @@ div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-base
     border-color: {PALETA['texto_general']}20 !important; 
     color: {PALETA['texto_general']} !important;
 }}
+/* Botón principal */
 button.stButton > div > button[kind="primary"] {{
     color: {PALETA_CLARA['fondo_principal']} !important; 
 }}
+
+{white_text_override} /* Inyección del CSS condicional */
 </style>
 """
 st.markdown(dynamic_css, unsafe_allow_html=True)
 
 
-# --- C. LÓGICA DE LA APLICACIÓN ---
+# --- D. LÓGICA DE LA APLICACIÓN ---
 
 # Inicialización del cliente de Gemini
 try:
@@ -184,7 +181,7 @@ except Exception:
 
 MODEL_NAME = 'gemini-2.5-flash'
 
-# --- 1. PROMPT MAESTRO (SIMPLIFICADO EL FORMATO DE SALIDA) ---
+# --- 1. PROMPT MAESTRO (SIMPLIFICADO PARA PEDIR SOLO TABLA MARKDOWN) ---
 def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados):
     """Ensambla el prompt con la lógica de CoT y restricciones."""
     
@@ -233,7 +230,7 @@ def llamar_gemini(prompt, temperature):
         st.error(f"🚨 Error inesperado: {e}")
         return None
 
-# --- D. INTERFAZ PRINCIPAL DE STREAMLIT ---
+# --- E. INTERFAZ PRINCIPAL DE STREAMLIT ---
 
 st.title("🗓️ Planificador Dinámico con IA")
 st.markdown("Optimiza tu tiempo de estudio con un plan semanal basado en tus recursos y la dificultad de tus tareas.")
@@ -325,9 +322,24 @@ if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_widt
         if resultado_ia:
             st.header("📋 Plan de Estudio Generado")
             st.success("✅ Planificación Generada con Éxito") 
+            
+            # --- MOSTRAR BOTÓN DE DESCARGA JUNTO A LA RESPUESTA ---
+            col_msg, col_download = st.columns([3, 1])
+            with col_msg:
+                 st.caption("Asegúrate de que el plan se haya generado como una tabla Markdown antes de descargar.")
+            
+            with col_download:
+                csv_data = markdown_to_csv(resultado_ia)
+                st.download_button(
+                    label="📥 Descargar CSV",
+                    data=csv_data,
+                    file_name='plan_dinamico.csv',
+                    mime='text/csv',
+                    use_container_width=True
+                )
+            # --- FIN DE BOTÓN DE DESCARGA ---
+            
+            st.markdown("---")
             st.markdown(resultado_ia)
             
             st.session_state.resultado_ia_raw = resultado_ia
-            
-            # Forzar el re-renderizado de la barra lateral para que aparezca el botón de descarga
-            st.experimental_rerun()
