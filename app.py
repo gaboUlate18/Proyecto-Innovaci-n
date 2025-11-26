@@ -4,9 +4,37 @@ from google.genai.errors import APIError
 import os
 import datetime
 
-# --- 0. CONFIGURACIÓN INICIAL Y CLAVE API ---
+# --- A. CONFIGURACIÓN VISUAL (Tematización sin TOML) ---
 
-# Configuración de la página (¡CRUCIAL para el look and feel!)
+# 1. Aplica un fondo limpio usando CSS inyectado
+Fondo_Gris_Claro = """
+<style>
+/* Color de fondo para toda la página */
+.stApp {
+    background-color: #F8F9FA; /* Gris Claro Limpio */
+}
+/* Color para los contenedores principales (tarjetas) */
+.stContainer, .stExpander {
+    background-color: white !important; /* Fondo blanco dentro de las cajas */
+    border-radius: 10px; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Sombra suave */
+    padding: 20px;
+}
+/* Estilo para los encabezados de la tabla generada por la IA */
+table th {
+    background-color: #007BFF; /* Azul Eficiencia */
+    color: white;
+}
+/* Color primario del botón de generar (aunque Streamlit tiene su propio primary) */
+button.stButton>div>button {
+    background-color: #007BFF; 
+}
+</style>
+"""
+st.markdown(Fondo_Gris_Claro, unsafe_allow_html=True)
+
+
+# Configuración de la página
 st.set_page_config(
     page_title="Planificador Dinámico IA",
     page_icon="🗓️",
@@ -14,9 +42,11 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
+
+# --- B. LÓGICA DE LA APLICACIÓN ---
+
 # Inicialización del cliente de Gemini
 try:
-    # Intenta inicializar el cliente, leyendo la clave del entorno (Streamlit Secrets)
     client = genai.Client()
 except Exception:
     st.error("🚨 La clave GEMINI_API_KEY no está configurada. Por favor, revisa los secretos de tu plataforma de hosting.")
@@ -24,8 +54,6 @@ except Exception:
 
 MODEL_NAME = 'gemini-2.5-flash'
 
-# --- 1. PROMPT MAESTRO (CoT) (El mismo, enfocado en la salida Markdown) ---
-# Se mantiene la misma lógica para asegurar la calidad de la planificación.
 def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento):
     """Ensambla el prompt con la lógica de Cadena de Pensamiento (CoT)."""
     return f"""
@@ -49,7 +77,6 @@ Actúa como un Experto en Planificación y Optimización de Procesos Académicos
 2. Después de la tabla, proporciona un 'Comentario Crítico' de no más de 3 líneas.
 """
 
-# --- 2. FUNCIÓN DE LLAMADA A LA API ---
 @st.cache_data(show_spinner=False)
 def llamar_gemini(prompt):
     """Llama a la API de Gemini y maneja los errores."""
@@ -68,22 +95,17 @@ def llamar_gemini(prompt):
         st.error(f"🚨 Error inesperado: {e}")
         return None
 
-# --- 3. INTERFAZ DE STREAMLIT ---
+# --- C. INTERFAZ DE STREAMLIT ---
 
 st.title("🗓️ Planificador Dinámico con IA")
 st.markdown("Optimiza tu tiempo de estudio con un plan semanal basado en tus recursos y la dificultad de tus tareas.")
 
-# Inicializar lista de tareas en el estado de la sesión
+# Inicializar lista de tareas
 if 'tasks' not in st.session_state:
     st.session_state.tasks = [{'id': 1}]
 
 def add_task():
-    # Añade una nueva tarea y evita que se borren las tareas anteriores en el flujo
     st.session_state.tasks.append({'id': len(st.session_state.tasks) + 1})
-
-def remove_task(task_id):
-    st.session_state.tasks = [t for t in st.session_state.tasks if t['id'] != task_id]
-
 
 # Recopilación de datos generales
 with st.expander("Recursos y Horarios", expanded=True):
@@ -94,27 +116,23 @@ with st.expander("Recursos y Horarios", expanded=True):
         mejor_momento = st.selectbox("⚡ Mejor Momento del Día (Pico de Energía):", ["Mañana", "Tarde", "Noche"])
 
 
-# Recopilación de datos de tareas (Usando expanders para un look más limpio)
+# Recopilación de datos de tareas
 task_data = []
 st.subheader("📝 Detalles de las Tareas")
 
 for i, task in enumerate(st.session_state.tasks):
-    
-    # Crea un expander para cada tarea, usando el nombre como título
     with st.expander(f"Tarea {i+1}", expanded=True):
         col_nombre, col_fecha, col_dificultad, col_energia = st.columns([2, 1, 1, 1])
         
         with col_nombre:
             tarea = st.text_input("Nombre de la Tarea:", key=f'tarea_{i}', value=f"Tarea Pendiente {i+1}")
         with col_fecha:
-            # Establece la fecha límite por defecto como 7 días a partir de hoy
             fecha_limite = st.date_input("Fecha Límite:", key=f'fechaLimite_{i}', value=datetime.date.today() + datetime.timedelta(days=7))
         with col_dificultad:
             dificultad = st.slider("Dificultad (1-10):", min_value=1, max_value=10, value=5, key=f'dificultad_{i}', help="Impacto cognitivo: 1 (Fácil) a 10 (Muy Difícil).")
         with col_energia:
             energia = st.selectbox("Req. de Energía:", ["Alto", "Medio", "Bajo"], key=f'energia_{i}', help="¿Cuánta energía mental te pide esta tarea?")
             
-        # Almacenar datos en la lista para el envío
         task_data.append({
             "tarea": tarea,
             "fechaLimite": str(fecha_limite),
@@ -152,5 +170,5 @@ if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_widt
         # Mostrar Resultado
         if resultado_ia:
             st.header("📋 Plan de Estudio Generado")
-            st.success("✅ Planificación Generada con Éxito")
-            st.markdown(resultado_ia) # Streamlit renderiza el Markdown (incluyendo la tabla)
+            st.success("✅ Planificación Generada con Éxito") # Usará el Verde Productivo
+            st.markdown(resultado_ia) # El CSS inyectado estiliza la tabla Markdown
