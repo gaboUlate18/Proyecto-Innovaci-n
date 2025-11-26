@@ -21,9 +21,6 @@ TEXTOS = {
         "restrictions_subheader": "🗓️ Restricciones de Días",
         "block_checkbox": "Activar Bloqueo de Días Específicos",
         "block_help": "Si se activa, aparecerá una opción en la pantalla principal para seleccionar días libres.",
-        # "ai_subheader": "🧠 Motor de Planificación", <--- ELIMINADO
-        # "ai_flexibility": "🌡️ Flexibilidad de la IA", <--- ELIMINADO
-        # "ai_temperature_help": "0.0 = Plan estricto. 1.0 = Plan creativo.", <--- ELIMINADO
         "resources_title": "Recursos y Horarios",
         "hours_input": "⏰ Horas de Estudio Diarias Disponibles:",
         "hours_help": "Máximo de horas que puedes dedicar por día.",
@@ -68,9 +65,6 @@ TEXTOS = {
         "restrictions_subheader": "🗓️ Day Restrictions",
         "block_checkbox": "Activate Specific Day Blocking",
         "block_help": "If activated, an option will appear on the main screen to select free days.",
-        # "ai_subheader": "🧠 Planning Engine", <--- ELIMINADO
-        # "ai_flexibility": "🌡️ AI Flexibility", <--- ELIMINADO
-        # "ai_temperature_help": "0.0 = Strict and predictable plan. 1.0 = Creative plan.", <--- ELIMINADO
         "resources_title": "Resources and Schedule",
         "hours_input": "⏰ Daily Study Hours Available:",
         "hours_help": "Maximum hours you can dedicate per day.",
@@ -105,7 +99,6 @@ TEXTOS = {
 
 # --- B. CONFIGURACIÓN VISUAL (Tematización Dinámica) ---
 
-# Paletas de Colores (se mantienen)
 PALETA_CLARA = {
     "fondo_principal": "#FFFFFF",
     "fondo_secundario": "#F8F9FA",
@@ -122,7 +115,6 @@ PALETA_OSCURA = {
     "acento_tabla": "#BB86FC"          
 }
 
-# Configuración de la página (se usa el título del diccionario)
 st.set_page_config(
     page_title=TEXTOS["es"]["page_title"], 
     page_icon="🗓️",
@@ -166,12 +158,7 @@ with st.sidebar:
         T["block_checkbox"],
         help=T["block_help"]
     )
-    st.markdown("---")
-
-    ## 3. MOTOR DE PLANIFICACIÓN (Ajustes de la IA) - Ahora solo muestra el título
-    st.subheader("🧠 Motor de Planificación") # Dejamos el subheader
-    # La flexibilidad de la IA (temperature slider) ha sido eliminada.
-    st.markdown("---")
+    # st.markdown("---") <-- ESTE FUE ELIMINADO
     
 # --- FIN DE BARRA LATERAL ---
 
@@ -226,7 +213,7 @@ st.markdown(dynamic_css, unsafe_allow_html=True)
 
 # --- E. FUNCIONES DE LÓGICA (Se usa T para textos) ---
 
-# Variable de temperatura fijada (ya no es un slider)
+# Variable de temperatura fijada
 ia_temperature = 0.5 
 
 # Inicialización del cliente de Gemini
@@ -239,7 +226,7 @@ except Exception:
 MODEL_NAME = 'gemini-2.5-flash'
 
 
-# --- 1. PROMPT MAESTRO (SIN CAMBIOS EN EL CONTENIDO) ---
+# --- 1. PROMPT MAESTRO ---
 def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, idioma):
     """Ensambla el prompt con la lógica de CoT, restricciones y formato de salida."""
     
@@ -380,8 +367,7 @@ if st.button(T["generate_button"], type="primary", use_container_width=True):
         for i, t in enumerate(task_data):
             task_list_text += f"Tarea {i + 1}: {t['tarea']} (Límite: {t['fechaLimite']}, Dificultad: {t['dificultad']}/10, Energía: {t['energia']})\n"
 
-        # Ensamblar y Llamar a Gemini con las variables de la barra lateral
-        # Se usa la temperatura fija: ia_temperature = 0.5
+        # Ensamblar y Llamar a Gemini con la temperatura fija: ia_temperature = 0.5
         prompt = ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, st.session_state.idioma)
         
         with st.spinner(T["spinner_msg"]):
