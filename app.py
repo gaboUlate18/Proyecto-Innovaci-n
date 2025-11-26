@@ -10,17 +10,17 @@ import datetime
 PALETA_CLARA = {
     "fondo_principal": "#FFFFFF",
     "fondo_secundario": "#F8F9FA",
-    "texto": "#343A40",
-    "acento": "#007BFF", # Azul Eficiencia
-    "acento_tabla": "#007BFF"
+    "texto_general": "#343A40",        # Gris oscuro para legibilidad general
+    "texto_acento": "#007BFF",         # Azul Eficiencia para TÍTULOS y ÉNFASIS
+    "acento_tabla": "#007BFF"          # Azul para encabezados de tabla
 }
 
 PALETA_OSCURA = {
     "fondo_principal": "#121212",
     "fondo_secundario": "#1E1E1E",
-    "texto": "#FFFFFF",
-    "acento": "#BB86FC", # Púrpura/Azul Acero
-    "acento_tabla": "#BB86FC"
+    "texto_general": "#FFFFFF",        # Blanco para legibilidad general
+    "texto_acento": "#BB86FC",         # Púrpura/Azul Acero para TÍTULOS y ÉNFASIS
+    "acento_tabla": "#BB86FC"          # Púrpura para encabezados de tabla
 }
 
 # Configuración de la página
@@ -48,29 +48,36 @@ dynamic_css = f"""
 /* 1. Fondo principal y texto general */
 .stApp {{
     background-color: {PALETA['fondo_principal']}; 
-    color: {PALETA['texto']} !important;
 }}
-/* 2. Contenedores y Expander (elementos tipo "tarjeta") */
+/* 2. Contenedores y Expander (tarjetas) */
 .stContainer, .stExpander, div[data-testid="stExpander"] {{
     background-color: {PALETA['fondo_secundario']} !important; 
     border-radius: 10px; 
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
     padding: 20px;
 }}
-/* 3. Títulos, Labels y texto */
-h1, h2, h3, h4, label, p, .stMarkdown, .st-ag {{
-    color: {PALETA['texto']} !important;
+/* 3. Títulos principales y Subtítulos (¡Acentos!) */
+h1, h2, h3, h4 {{
+    color: {PALETA['texto_acento']} !important;
 }}
-/* 4. Estilo de los encabezados de la tabla generada por la IA */
+/* 4. Labels de Inputs y texto general (legibilidad) */
+label, p, .stMarkdown, .st-ag {{
+    color: {PALETA['texto_general']} !important;
+}}
+/* 5. Estilo de los encabezados de la tabla generada por la IA */
 table th {{
     background-color: {PALETA['acento_tabla']}; 
-    color: {PALETA_CLARA['texto']} !important; /* Siempre negro/oscuro para buen contraste en el encabezado */
+    color: {PALETA_CLARA['fondo_principal']} !important; /* Blanco/Luz para contraste máximo */
 }}
-/* 5. Inputs y selectores de fondo */
-div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-baseweb="textarea"] > div {{
-    background-color: {PALETA['fondo_principal']} !important;
-    border-color: {PALETA['texto']}20 !important; /* Borde suave */
-    color: {PALETA['texto']} !important;
+/* 6. Inputs y selectores de fondo/texto */
+div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-baseweb="textarea"] > div, div[data-testid="stExpander"] > div:first-child {{
+    background-color: {PALETA['fondo_principal']} !important; /* Fondo del input */
+    border-color: {PALETA['texto_general']}20 !important; /* Borde suave */
+    color: {PALETA['texto_general']} !important; /* Texto del input */
+}}
+/* 7. Color del botón principal (type="primary") */
+button.stButton > div > button[kind="primary"] {{
+    color: {PALETA_CLARA['fondo_principal']} !important; /* Texto blanco en el botón primary */
 }}
 </style>
 """
@@ -88,7 +95,7 @@ except Exception:
 
 MODEL_NAME = 'gemini-2.5-flash'
 
-# --- 1. PROMPT MAESTRO (INCLUYE ANÁLISIS DE TÉCNICA) ---
+# --- 1. PROMPT MAESTRO (Mismo Prompt) ---
 def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento):
     """Ensambla el prompt con la lógica de Cadena de Pensamiento (CoT) y la recomendación de técnica."""
     return f"""
@@ -160,6 +167,7 @@ task_data = []
 st.subheader("📝 Detalles de las Tareas")
 
 for i, task in enumerate(st.session_state.tasks):
+    # Uso de la función nativa para el título del expander
     with st.expander(f"Tarea {i+1}", expanded=True):
         col_nombre, col_fecha, col_dificultad, col_energia = st.columns([2, 1, 1, 1])
         
