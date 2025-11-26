@@ -158,7 +158,8 @@ with st.sidebar:
         T["block_checkbox"],
         help=T["block_help"]
     )
-    # st.markdown("---") <-- ESTE FUE ELIMINADO
+    # st.markdown("---") <--- ELIMINADO PARA QUITAR ESPACIO
+    # Se eliminó la sección del Motor de Planificación para quitar el espacio que quedaba.
     
 # --- FIN DE BARRA LATERAL ---
 
@@ -226,7 +227,7 @@ except Exception:
 MODEL_NAME = 'gemini-2.5-flash'
 
 
-# --- 1. PROMPT MAESTRO ---
+# --- 1. PROMPT MAESTRO (ACTUALIZADO CON NUEVAS REGLAS DE OUTPUT) ---
 def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, idioma):
     """Ensambla el prompt con la lógica de CoT, restricciones y formato de salida."""
     
@@ -236,11 +237,15 @@ def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dia
     if idioma == 'en':
         prompt_language = "English"
         restraint_text = f"Restraint: You MUST NOT assign NEW tasks or focus activities on the following days: {dias_bloqueados_str}."
-        output_format_text = "Generate a day-by-day study plan for the next week in standard **Markdown Table** format. The table must have exactly the columns: Day, Task (Name and Due Date), Schedule, Focus (1.5-2h Block)."
+        output_format_table = "Generate a day-by-day study plan for the next week in standard **Markdown Table** format. The table must have exactly the columns: Day, Task (Name and Due Date), Schedule, Focus (1.5-2h Block)."
+        output_format_motivation = "* Motivational Phrase (Unique): [An inspiring phrase about study and consistency, different from the last one you used.]"
+        output_format_initial = "START the response with a level-two header **'## Criticality and Prioritization Analysis'**. Inside, briefly explain how the tasks were prioritized (by due date and difficulty) before showing the table."
     else: # español
         prompt_language = "Español"
         restraint_text = f"Restricción de Días: NO debes asignar **NUEVAS** tareas ni actividades de enfoque los días: {dias_bloqueados_str}."
-        output_format_text = "Genera un plan de estudio DÍA POR DÍA para la próxima semana en formato **Tabla Markdown estándar**. La tabla debe tener exactamente las columnas: Día, Tarea (Nombre y Fecha Límite), Horario, Enfoque (Bloque de 1.5-2h)."
+        output_format_table = "Genera un plan de estudio DÍA POR DÍA para la próxima semana en formato **Tabla Markdown estándar**. La tabla debe tener exactamente las columnas: Día, Tarea (Nombre y Fecha Límite), Horario, Enfoque (Bloque de 1.5-2h)."
+        output_format_motivation = "* Frase Motivacional (Única): [Una frase inspiradora relacionada con el estudio y la constancia, diferente a la última que hayas usado.]"
+        output_format_initial = "INICIA la respuesta con un encabezado de segundo nivel **'## Análisis de Criticidad y Priorización'**. Dentro, explica brevemente cómo se priorizaron las tareas (por fecha límite y dificultad) antes de mostrar la tabla."
 
 
     return f"""
@@ -259,12 +264,13 @@ Actúa como un Experto en Planificación y Optimización de Procesos Académicos
 4. Asigna bloques de 1.5 a 2 horas, poniendo los bloques más difíciles en el {mejor_momento}.
 5. Restricción de Horas: No excedas el límite de {horas_disponibles} horas diarias.
 
-**OUTPUT REQUERIDO:**
-1. {output_format_text}
-2. Después del plan, proporciona un 'Asesoramiento de Productividad' con el siguiente formato, utilizando los términos en **{prompt_language}**:
-    * Técnica Recomendada: [Nombre de la técnica]
-    * Justificación de Uso: [Una explicación de 2 líneas]
-3. Finaliza con un 'Comentario Crítico' de no más de 3 líneas en **{prompt_language}**.
+**OUTPUT REQUERIDO (en {prompt_language}):**
+1. {output_format_initial}
+2. A continuación, muestra el plan:
+    * {output_format_table}
+3. Después del plan, proporciona un 'Asesoramiento Final' con el siguiente formato:
+    {output_format_motivation}
+4. Finaliza con un 'Comentario Crítico' de no más de 3 líneas.
 """
 
 # --- 2. FUNCIÓN DE LLAMADA A LA API ---
