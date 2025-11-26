@@ -3,6 +3,8 @@ from google import genai
 from google.genai.errors import APIError
 import os
 import datetime
+import pandas as pd # <-- Se necesita Pandas para la conversión a CSV
+import io # Para manejar el flujo de bytes de CSV
 
 # --- A. CONFIGURACIÓN VISUAL (Tematización Dinámica) ---
 
@@ -37,6 +39,49 @@ st.set_page_config(
 if 'resultado_ia_raw' not in st.session_state:
     st.session_state.resultado_ia_raw = None
 
+# Función auxiliar para convertir el texto Markdown a un DataFrame de Pandas/CSV
+def markdown_to_csv(markdown_text):
+    """
+    Convierte la tabla Markdown (la primera que encuentra) a un CSV.
+    Esto es una implementación simplificada y puede fallar si el formato de la IA cambia.
+    """
+    lines = markdown_text.strip().split('\n')
+    
+    # Buscar el inicio de la tabla (generalmente la línea de encabezado)
+    table_start_index = -1
+    for i, line in enumerate(lines):
+        if '|' in line and 'Día' in line:
+            table_start_index = i
+            break
+            
+    if table_start_index == -1:
+        return pd.DataFrame().to_csv(index=False) # Retorna vacío si no encuentra tabla
+
+    # Las líneas relevantes son: Encabezado y Datos (saltando la línea separadora '---')
+    data_lines = []
+    
+    # Colectar encabezado y datos
+    for i in range(table_start_index, len(lines)):
+        line = lines[i].strip()
+        # Excluir la línea de separación de Markdown (e.g., |---|---|)
+        if line.startswith('|') and '---' not in line:
+            # Limpiar la línea y dividir por |
+            cleaned_line = [item.strip() for item in line.split('|') if item.strip()]
+            if cleaned_line:
+                data_lines.append(cleaned_line)
+    
+    if not data_lines:
+        return pd.DataFrame().to_csv(index=False)
+        
+    # La primera línea es el encabezado, el resto son datos
+    df = pd.DataFrame(data_lines[1:], columns=data_lines[0])
+    
+    # Convertir a CSV en memoria (IO buffer)
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    return buffer.getvalue()
+
+
 with st.sidebar:
     st.header("⚙️ Ajustes Avanzados")
     st.markdown("---")
@@ -46,9 +91,7 @@ with st.sidebar:
     theme_choice = st.selectbox("Elige un Modo:", ["Modo Claro ☀️", "Modo Oscuro 🌑"])
     st.markdown("---")
 
-    ## 2. RESTRICCIONES DE TIEMPO
-
-    # Checkbox para activar la función de bloqueo
+    ## 2. RESTRICCIONES DE DÍAS
     st.subheader("🗓️ Restricciones de Días")
     activar_bloqueo_dias = st.checkbox(
         "Activar Bloqueo de Días Específicos",
@@ -68,14 +111,26 @@ with st.sidebar:
         help="0.0 = Plan estricto. 1.0 = Plan creativo."
     )
     
-    formato_salida = st.radio(
-        "📝 Formato de Plan Generado:", 
-        ["Tabla Markdown", "Texto Plano"],
-        help="Markdown es mejor para la app. Texto Plano es para copiar y pegar fácilmente."
-    )
+    # NUEVO CONTROL DE EXPORTACIÓN (El botón solo aparece si hay datos)
+    if st.session_state.resultado_ia_raw:
+        st.markdown("---")
+        st.subheader("⬇️ Exportar Plan")
+
+        csv_data = markdown_to_csv(st.session_state.resultado_ia_raw)
+        
+        # Botón de Descarga
+        st.download_button(
+            label="📥 Descargar CSV (compatible con Excel)",
+            data=csv_data,
+            file_name='plan_dinamico.csv',
+            mime='text/csv',
+            use_container_width=True
+        )
+        # Nota: Las opciones de PDF/Imagen requerirían librerías adicionales y lógica compleja.
+        # st.button("Descargar PDF (Requiere librerías)", disabled=True) 
+        # st.button("Descargar Imagen (Requiere librerías)", disabled=True) 
+        
     st.markdown("---")
-    
-    ## (LA SECCIÓN 4 DE GESTIÓN DE FLUJO FUE ELIMINADA)
     
     # Control de Reinicio (Movido al final del sidebar)
     if st.button("🔄 Reiniciar Todas las Entradas", use_container_width=True):
@@ -129,17 +184,12 @@ except Exception:
 
 MODEL_NAME = 'gemini-2.5-flash'
 
-# --- 1. PROMPT MAESTRO ---
-def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, formato_salida):
-    """Ensambla el prompt con la lógica de CoT, restricciones y formato de salida."""
+# --- 1. PROMPT MAESTRO (SIMPLIFICADO EL FORMATO DE SALIDA) ---
+def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados):
+    """Ensambla el prompt con la lógica de CoT y restricciones."""
     
     dias_bloqueados_str = ", ".join(dias_bloqueados)
     
-    tabla_formato = "Tabla Markdown"
-    if formato_salida == "Texto Plano":
-         tabla_formato = "Lista Simple de Texto Plano (Sin formato de tabla Markdown, solo texto y guiones)"
-
-
     return f"""
 Actúa como un Experto en Planificación y Optimización de Procesos Académicos. Tu objetivo es crear un plan de estudio semanal que optimice la eficiencia y minimice el estrés para el estudiante.
 
@@ -157,7 +207,7 @@ Actúa como un Experto en Planificación y Optimización de Procesos Académicos
 5. **Restricción de Horas:** No excedas el límite de {horas_disponibles} horas diarias.
 
 **OUTPUT REQUERIDO:**
-1. Genera un plan de estudio DÍA POR DÍA para la próxima semana en formato **{tabla_formato}**. Si es una tabla, debe tener las columnas: Día, Tarea (Nombre y Fecha Límite), Horario, Enfoque (Bloque de 1.5-2h). Si es Texto Plano, debe ser legible línea por línea.
+1. Genera un plan de estudio DÍA POR DÍA para la próxima semana en formato **Tabla Markdown estándar**. La tabla debe tener exactamente las columnas: Día, Tarea (Nombre y Fecha Límite), Horario, Enfoque (Bloque de 1.5-2h). Asegúrate de que las columnas estén bien delimitadas con barras verticales (|).
 2. Después del plan, proporciona un 'Asesoramiento de Productividad' con el siguiente formato:
     * **Técnica Recomendada:** [Nombre de la técnica, ej: Pomodoro, Feynman]
     * **Justificación de Uso:** [Una explicación de 2 líneas sobre por qué esta técnica es ideal para el momento del día ({mejor_momento}).]
@@ -217,7 +267,6 @@ with st.expander("Recursos y Horarios", expanded=True):
             help="Los días seleccionados serán excluidos de la planificación de tareas."
         )
     else:
-        # Si no está activado, la lista se queda vacía, lo cual se pasa al prompt.
         dias_bloqueados = []
         
 
@@ -267,7 +316,7 @@ if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_widt
             task_list_text += f"Tarea {i + 1}: {t['tarea']} (Límite: {t['fechaLimite']}, Dificultad: {t['dificultad']}/10, Energía: {t['energia']})\n"
 
         # Ensamblar y Llamar a Gemini con las variables de la barra lateral
-        prompt = ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, formato_salida)
+        prompt = ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados)
         
         with st.spinner('✨ Cargando... Generando la estrategia óptima con IA. Esto puede tardar unos segundos.'):
             resultado_ia = llamar_gemini(prompt, ia_temperature) 
@@ -280,5 +329,5 @@ if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_widt
             
             st.session_state.resultado_ia_raw = resultado_ia
             
-            # Forzar el re-renderizado de la barra lateral para cualquier lógica futura
+            # Forzar el re-renderizado de la barra lateral para que aparezca el botón de descarga
             st.experimental_rerun()
