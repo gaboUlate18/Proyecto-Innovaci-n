@@ -3,10 +3,115 @@ from google import genai
 from google.genai.errors import APIError
 import os
 import datetime
-import pandas as pd # Se necesita Pandas para la conversión a CSV
-import io # Para manejar el flujo de bytes de CSV
+import pandas as pd
+import io
 
-# --- A. CONFIGURACIÓN VISUAL (Tematización Dinámica) ---
+# --- A. DICCIONARIO DE TEXTOS (Multilenguaje) ---
+
+TEXTOS = {
+    "es": {
+        "page_title": "Planificador Dinámico IA",
+        "app_title": "🗓️ Planificador Dinámico con IA",
+        "app_subtitle": "Optimiza tu tiempo de estudio con un plan semanal basado en tus recursos y la dificultad de tus tareas.",
+        "sidebar_header": "⚙️ Ajustes Avanzados",
+        "theme_subheader": "🎨 Tema y Visualización",
+        "theme_select": "Elige un Modo:",
+        "theme_light": "Modo Claro ☀️",
+        "theme_dark": "Modo Oscuro 🌑",
+        "lang_subheader": "🌐 Idioma",
+        "lang_select": "Seleccionar Idioma:",
+        "restrictions_subheader": "🗓️ Restricciones de Días",
+        "block_checkbox": "Activar Bloqueo de Días Específicos",
+        "block_help": "Si se activa, aparecerá una opción en la pantalla principal para seleccionar días libres.",
+        "ai_subheader": "🧠 Motor de Planificación",
+        "ai_flexibility": "🌡️ Flexibilidad de la IA",
+        "restart_button": "🔄 Reiniciar Todas las Entradas",
+        "resources_title": "Recursos y Horarios",
+        "hours_input": "⏰ Horas de Estudio Diarias Disponibles:",
+        "hours_help": "Máximo de horas que puedes dedicar por día.",
+        "moment_select": "⚡ Mejor Momento del Día (Pico de Energía):",
+        "moment_options": ["Mañana", "Tarde", "Noche"],
+        "tasks_subheader": "📝 Detalles de las Tareas",
+        "task_name": "Nombre de la Tarea:",
+        "task_due": "Fecha Límite:",
+        "task_difficulty": "Dificultad (1-10):",
+        "difficulty_help": "Impacto cognitivo: 1 (Fácil) a 10 (Muy Difícil).",
+        "task_energy": "Req. de Energía:",
+        "energy_options": ["Alto", "Medio", "Bajo"],
+        "add_task": "➕ Agregar Tarea Adicional",
+        "remove_task": "➖ Eliminar Última Tarea",
+        "generate_button": "🚀 Generar Plan Optimizando",
+        "warning_no_task": "Por favor, agregue al menos una tarea.",
+        "spinner_msg": "✨ Cargando... Generando la estrategia óptima con IA. Esto puede tardar unos segundos.",
+        "result_header": "📋 Plan de Estudio Generado",
+        "result_success": "✅ Planificación Generada con Éxito",
+        "download_caption": "Asegúrate de que el plan se haya generado como una tabla Markdown antes de descargar.",
+        "download_button": "📥 Descargar CSV",
+        "block_multiselect": "🚫 ¿Qué días de la semana deseas bloquear completamente para descanso?",
+        "block_multiselect_help": "Los días seleccionados serán excluidos de la planificación de tareas.",
+        "days": ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+        "day_defaults": ['Sábado', 'Domingo'],
+        "output_format_radio": "📝 Formato de Plan Generado:", 
+        "output_format_options": ["Tabla Markdown", "Texto Plano"],
+        "error_api": "🚨 Error de API de Gemini: ",
+        "error_unexpected": "🚨 Error inesperado: ",
+        "error_key": "🚨 La clave GEMINI_API_KEY no está configurada. Por favor, revisa los secretos de tu plataforma de hosting.",
+        "ai_temperature_help": "0.0 = Plan estricto. 1.0 = Plan creativo.",
+        "task_placeholder": "Tarea Pendiente "
+    },
+    "en": {
+        "page_title": "Dynamic AI Planner",
+        "app_title": "🗓️ Dynamic AI Planner",
+        "app_subtitle": "Optimize your study time with a weekly plan based on your resources and task difficulty.",
+        "sidebar_header": "⚙️ Advanced Settings",
+        "theme_subheader": "🎨 Theme and Visualization",
+        "theme_select": "Choose Mode:",
+        "theme_light": "Light Mode ☀️",
+        "theme_dark": "Dark Mode 🌑",
+        "lang_subheader": "🌐 Language",
+        "lang_select": "Select Language:",
+        "restrictions_subheader": "🗓️ Day Restrictions",
+        "block_checkbox": "Activate Specific Day Blocking",
+        "block_help": "If activated, an option will appear on the main screen to select free days.",
+        "ai_subheader": "🧠 Planning Engine",
+        "ai_flexibility": "🌡️ AI Flexibility",
+        "restart_button": "🔄 Reset All Inputs",
+        "resources_title": "Resources and Schedule",
+        "hours_input": "⏰ Daily Study Hours Available:",
+        "hours_help": "Maximum hours you can dedicate per day.",
+        "moment_select": "⚡ Best Time of Day (Energy Peak):",
+        "moment_options": ["Morning", "Afternoon", "Night"],
+        "tasks_subheader": "📝 Task Details",
+        "task_name": "Task Name:",
+        "task_due": "Due Date:",
+        "task_difficulty": "Difficulty (1-10):",
+        "difficulty_help": "Cognitive impact: 1 (Easy) to 10 (Very Difficult).",
+        "task_energy": "Energy Requirement:",
+        "energy_options": ["High", "Medium", "Low"],
+        "add_task": "➕ Add Additional Task",
+        "remove_task": "➖ Remove Last Task",
+        "generate_button": "🚀 Generate Optimized Plan",
+        "warning_no_task": "Please add at least one task.",
+        "spinner_msg": "✨ Loading... Generating the optimal strategy with AI. This may take a few seconds.",
+        "result_header": "📋 Generated Study Plan",
+        "result_success": "✅ Planning Generated Successfully",
+        "download_caption": "Ensure the plan has generated as a Markdown table before downloading.",
+        "download_button": "📥 Download CSV",
+        "block_multiselect": "🚫 Which days of the week do you want to completely block for rest?",
+        "block_multiselect_help": "Selected days will be excluded from task planning.",
+        "days": ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        "day_defaults": ['Saturday', 'Sunday'],
+        "output_format_radio": "📝 Generated Plan Format:",
+        "output_format_options": ["Markdown Table", "Plain Text"],
+        "error_api": "🚨 Gemini API Error: ",
+        "error_unexpected": "🚨 Unexpected Error: ",
+        "error_key": "🚨 The GEMINI_API_KEY is not configured. Please check your hosting platform secrets.",
+        "ai_temperature_help": "0.0 = Strict and predictable plan. 1.0 = Creative plan.",
+        "task_placeholder": "Pending Task "
+    }
+}
+
+# --- B. CONFIGURACIÓN VISUAL (Tematización Dinámica) ---
 
 # Paletas de Colores (se mantienen)
 PALETA_CLARA = {
@@ -25,92 +130,68 @@ PALETA_OSCURA = {
     "acento_tabla": "#BB86FC"          
 }
 
-# Configuración de la página
+# Configuración de la página (se usa el título del diccionario)
 st.set_page_config(
-    page_title="Planificador Dinámico IA",
+    page_title=TEXTOS["es"]["page_title"], # Se usa español por defecto para el config de la página
     page_icon="🗓️",
     layout="centered",
     initial_sidebar_state="auto"
 )
 
-# --- B. FUNCIONES AUXILIARES ---
+# --- C. BARRA LATERAL (st.sidebar) ---
 
 # Se inicializa el estado de la aplicación
 if 'resultado_ia_raw' not in st.session_state:
     st.session_state.resultado_ia_raw = None
-
-# Función auxiliar para convertir el texto Markdown a un DataFrame de Pandas/CSV
-def markdown_to_csv(markdown_text):
-    """
-    Convierte la tabla Markdown (la primera que encuentra) a un CSV.
-    """
-    lines = markdown_text.strip().split('\n')
-    
-    # Buscar el inicio de la tabla
-    table_start_index = -1
-    for i, line in enumerate(lines):
-        if '|' in line and 'Día' in line:
-            table_start_index = i
-            break
-            
-    if table_start_index == -1:
-        return pd.DataFrame().to_csv(index=False) 
-
-    data_lines = []
-    
-    # Colectar encabezado y datos
-    for i in range(table_start_index, len(lines)):
-        line = lines[i].strip()
-        if line.startswith('|') and '---' not in line:
-            cleaned_line = [item.strip() for item in line.split('|') if item.strip()]
-            if cleaned_line:
-                data_lines.append(cleaned_line)
-    
-    if len(data_lines) < 2:
-        return pd.DataFrame().to_csv(index=False)
-        
-    df = pd.DataFrame(data_lines[1:], columns=data_lines[0])
-    
-    buffer = io.StringIO()
-    df.to_csv(buffer, index=False)
-    return buffer.getvalue()
-
-
-# --- C. BARRA LATERAL (st.sidebar) ---
+if 'idioma' not in st.session_state:
+    st.session_state.idioma = 'es'
 
 with st.sidebar:
-    st.header("⚙️ Ajustes Avanzados")
-    st.markdown("---")
+    st.header(TEXTOS["es"]["sidebar_header"]) # Usamos español en el header fijo del sidebar
 
+    ## 0. SELECTOR DE IDIOMA
+    st.subheader(TEXTOS["es"]["lang_subheader"])
+    idioma_map = {"Español": "es", "English": "en"}
+    idioma_seleccionado = st.selectbox(
+        TEXTOS["es"]["lang_select"],
+        options=list(idioma_map.keys()),
+        index=0,
+        key="language_selector"
+    )
+    st.session_state.idioma = idioma_map[idioma_seleccionado]
+    T = TEXTOS[st.session_state.idioma] # Asignamos el diccionario de textos
+
+    st.markdown("---")
+    
     ## 1. AJUSTES DE TEMA (Paleta Dinámica)
-    st.subheader("🎨 Tema y Visualización")
-    theme_choice = st.selectbox("Elige un Modo:", ["Modo Claro ☀️", "Modo Oscuro 🌑"])
+    st.subheader(T["theme_subheader"])
+    theme_choice = st.selectbox(T["theme_select"], [T["theme_light"], T["theme_dark"]])
     st.markdown("---")
 
     ## 2. RESTRICCIONES DE DÍAS
-    st.subheader("🗓️ Restricciones de Días")
+    st.subheader(T["restrictions_subheader"])
     activar_bloqueo_dias = st.checkbox(
-        "Activar Bloqueo de Días Específicos",
-        help="Si se activa, aparecerá una opción en la pantalla principal para seleccionar días libres."
+        T["block_checkbox"],
+        help=T["block_help"]
     )
     st.markdown("---")
 
     ## 3. MOTOR DE PLANIFICACIÓN (Ajustes de la IA)
-    st.subheader("🧠 Motor de Planificación")
+    st.subheader(T["ai_subheader"])
     
     ia_temperature = st.slider(
-        "🌡️ Flexibilidad de la IA", 
+        T["ai_flexibility"], 
         min_value=0.0, 
         max_value=1.0, 
         value=0.5, 
         step=0.1,
-        help="0.0 = Plan estricto. 1.0 = Plan creativo."
+        help=T["ai_temperature_help"]
     )
     
     st.markdown("---")
     
     # Control de Reinicio 
-    if st.button("🔄 Reiniciar Todas las Entradas", use_container_width=True):
+    if st.button(T["restart_button"], use_container_width=True):
         if 'tasks' in st.session_state:
             st.session_state.tasks = [{'id': 1}]
         st.session_state.resultado_ia_raw = None
@@ -121,22 +202,19 @@ with st.sidebar:
 # 4. Lógica de Temas y CSS
 
 # Asignación de Paleta de Tema (Basado en la selección del sidebar)
-if theme_choice == "Modo Claro ☀️":
+if theme_choice == T["theme_light"]:
     PALETA = PALETA_CLARA
 else:
     PALETA = PALETA_OSCURA
 
 # 5. Inyección de CSS (INCLUYE OVERRIDE PARA TEXTO BLANCO EN MODO CLARO)
 white_text_override = ""
-if theme_choice == "Modo Claro ☀️":
+if theme_choice == T["theme_light"]:
     # Forzar color blanco para etiquetas en la barra lateral cuando el fondo de la app es claro
-    # (El sidebar de Streamlit en modo claro tiene un color de fondo que requiere texto claro)
     white_text_override = """
     [data-testid="stSidebar"] label,
     [data-testid="stSidebar"] .stButton > button {
         color: white !important;
-        /* Texto del botón Reiniciar: el texto de los botones normales suele ser el color del texto general. 
-        Lo forzamos a blanco para asegurar visibilidad en el sidebar claro/gris. */
     }
     """
 
@@ -170,25 +248,72 @@ button.stButton > div > button[kind="primary"] {{
 st.markdown(dynamic_css, unsafe_allow_html=True)
 
 
-# --- D. LÓGICA DE LA APLICACIÓN ---
+# --- E. FUNCIONES DE LÓGICA (Se usa T para textos) ---
 
 # Inicialización del cliente de Gemini
 try:
     client = genai.Client()
 except Exception:
-    st.error("🚨 La clave GEMINI_API_KEY no está configurada. Por favor, revisa los secretos de tu plataforma de hosting.")
+    st.error(T["error_key"])
     st.stop() 
 
 MODEL_NAME = 'gemini-2.5-flash'
 
-# --- 1. PROMPT MAESTRO (SIMPLIFICADO PARA PEDIR SOLO TABLA MARKDOWN) ---
-def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados):
-    """Ensambla el prompt con la lógica de CoT y restricciones."""
+# Función auxiliar para convertir el texto Markdown a un DataFrame de Pandas/CSV
+def markdown_to_csv(markdown_text):
+    """
+    Convierte la tabla Markdown (la primera que encuentra) a un CSV.
+    (La lógica interna se mantiene igual, ya que Pandas no depende del idioma).
+    """
+    lines = markdown_text.strip().split('\n')
+    
+    table_start_index = -1
+    for i, line in enumerate(lines):
+        if '|' in line and ('Día' in line or 'Day' in line): # Aceptamos ambos idiomas
+            table_start_index = i
+            break
+            
+    if table_start_index == -1:
+        return pd.DataFrame().to_csv(index=False) 
+
+    data_lines = []
+    
+    for i in range(table_start_index, len(lines)):
+        line = lines[i].strip()
+        if line.startswith('|') and '---' not in line:
+            cleaned_line = [item.strip() for item in line.split('|') if item.strip()]
+            if cleaned_line:
+                data_lines.append(cleaned_line)
+    
+    if len(data_lines) < 2:
+        return pd.DataFrame().to_csv(index=False)
+        
+    df = pd.DataFrame(data_lines[1:], columns=data_lines[0])
+    
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    return buffer.getvalue()
+
+
+# --- 1. PROMPT MAESTRO (ACTUALIZADO CON IDIOMA) ---
+def ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, idioma):
+    """Ensambla el prompt con la lógica de CoT, restricciones y formato de salida."""
     
     dias_bloqueados_str = ", ".join(dias_bloqueados)
     
+    # Textos clave que cambian para el Prompt
+    if idioma == 'en':
+        prompt_language = "English"
+        restraint_text = f"Restraint: You MUST NOT assign NEW tasks or focus activities on the following days: {dias_bloqueados_str}."
+        output_format_text = "Generate a day-by-day study plan for the next week in standard **Markdown Table** format. The table must have exactly the columns: Day, Task (Name and Due Date), Schedule, Focus (1.5-2h Block)."
+    else: # español
+        prompt_language = "Español"
+        restraint_text = f"Restricción de Días: NO debes asignar **NUEVAS** tareas ni actividades de enfoque los días: {dias_bloqueados_str}."
+        output_format_text = "Genera un plan de estudio DÍA POR DÍA para la próxima semana en formato **Tabla Markdown estándar**. La tabla debe tener exactamente las columnas: Día, Tarea (Nombre y Fecha Límite), Horario, Enfoque (Bloque de 1.5-2h)."
+
+
     return f"""
-Actúa como un Experto en Planificación y Optimización de Procesos Académicos. Tu objetivo es crear un plan de estudio semanal que optimice la eficiencia y minimice el estrés para el estudiante.
+Actúa como un Experto en Planificación y Optimización de Procesos Académicos. Tu respuesta debe estar completamente en **{prompt_language}**. Tu objetivo es crear un plan de estudio semanal que optimice la eficiencia y minimice el estrés para el estudiante.
 
 **DATOS DE ENTRADA:**
 - Horas de Estudio Diarias Disponibles: {horas_disponibles} horas.
@@ -197,18 +322,18 @@ Actúa como un Experto en Planificación y Optimización de Procesos Académicos
 {task_list_text}
 
 **RESTRICCIONES Y REGLAS DE PROCESO (CoT):**
-1. **Restricción de Días:** NO debes asignar **NUEVAS** tareas ni actividades de enfoque los días: {dias_bloqueados_str}.
+1. {restraint_text}
 2. Evalúa la Criticidad (Dificultad + Fecha Límite + Energía) de CADA tarea.
 3. Prioriza las tareas con la Fecha Límite más cercana Y la Dificultad más alta.
 4. Asigna bloques de 1.5 a 2 horas, poniendo los bloques más difíciles en el {mejor_momento}.
-5. **Restricción de Horas:** No excedas el límite de {horas_disponibles} horas diarias.
+5. Restricción de Horas: No excedas el límite de {horas_disponibles} horas diarias.
 
 **OUTPUT REQUERIDO:**
-1. Genera un plan de estudio DÍA POR DÍA para la próxima semana en formato **Tabla Markdown estándar**. La tabla debe tener exactamente las columnas: Día, Tarea (Nombre y Fecha Límite), Horario, Enfoque (Bloque de 1.5-2h). Asegúrate de que las columnas estén bien delimitadas con barras verticales (|).
-2. Después del plan, proporciona un 'Asesoramiento de Productividad' con el siguiente formato:
-    * **Técnica Recomendada:** [Nombre de la técnica, ej: Pomodoro, Feynman]
-    * **Justificación de Uso:** [Una explicación de 2 líneas sobre por qué esta técnica es ideal para el momento del día ({mejor_momento}).]
-3. Finaliza con un 'Comentario Crítico' de no más de 3 líneas.
+1. {output_format_text}
+2. Después del plan, proporciona un 'Asesoramiento de Productividad' con el siguiente formato, utilizando los términos en **{prompt_language}**:
+    * Técnica Recomendada: [Nombre de la técnica]
+    * Justificación de Uso: [Una explicación de 2 líneas]
+3. Finaliza con un 'Comentario Crítico' de no más de 3 líneas en **{prompt_language}**.
 """
 
 # --- 2. FUNCIÓN DE LLAMADA A LA API ---
@@ -224,16 +349,16 @@ def llamar_gemini(prompt, temperature):
         return response.text
 
     except APIError as e:
-        st.error(f"🚨 Error de API de Gemini: {e}")
+        st.error(T["error_api"] + str(e))
         return None
     except Exception as e:
-        st.error(f"🚨 Error inesperado: {e}")
+        st.error(T["error_unexpected"] + str(e))
         return None
 
-# --- E. INTERFAZ PRINCIPAL DE STREAMLIT ---
+# --- F. INTERFAZ PRINCIPAL DE STREAMLIT ---
 
-st.title("🗓️ Planificador Dinámico con IA")
-st.markdown("Optimiza tu tiempo de estudio con un plan semanal basado en tus recursos y la dificultad de tus tareas.")
+st.title(T["app_title"])
+st.markdown(T["app_subtitle"])
 
 # Inicializar lista de tareas
 if 'tasks' not in st.session_state:
@@ -243,25 +368,24 @@ def add_task():
     st.session_state.tasks.append({'id': len(st.session_state.tasks) + 1})
 
 # Recopilación de datos generales
-with st.expander("Recursos y Horarios", expanded=True):
+with st.expander(T["resources_title"], expanded=True):
     col_horas, col_momento = st.columns(2)
     with col_horas:
-        horas_disponibles = st.number_input("⏰ Horas de Estudio Diarias Disponibles:", min_value=1, value=3, help="Máximo de horas que puedes dedicar por día.")
+        horas_disponibles = st.number_input(T["hours_input"], min_value=1, value=3, help=T["hours_help"])
     with col_momento:
-        mejor_momento = st.selectbox("⚡ Mejor Momento del Día (Pico de Energía):", ["Mañana", "Tarde", "Noche"])
+        mejor_momento = st.selectbox(T["moment_select"], T["moment_options"])
     
     # --- LÓGICA CONDICIONAL DE DÍAS BLOQUEADOS ---
-    dias_bloqueados = [] # Inicialización por defecto
+    dias_bloqueados = []
 
-    # Si el usuario activó el checkbox en la barra lateral, muestra el multiselect
     if activar_bloqueo_dias:
         st.markdown("---")
-        st.subheader("Selección de Días Libres")
+        st.subheader(T["restrictions_subheader"])
         dias_bloqueados = st.multiselect(
-            "🚫 ¿Qué días de la semana deseas bloquear completamente para descanso?", 
-            ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
-            default=['Sábado', 'Domingo'],
-            help="Los días seleccionados serán excluidos de la planificación de tareas."
+            T["block_multiselect"], 
+            T["days"],
+            default=T["day_defaults"],
+            help=T["block_multiselect_help"]
         )
     else:
         dias_bloqueados = []
@@ -269,20 +393,20 @@ with st.expander("Recursos y Horarios", expanded=True):
 
 # Recopilación de datos de tareas
 task_data = []
-st.subheader("📝 Detalles de las Tareas")
+st.subheader(T["tasks_subheader"])
 
 for i, task in enumerate(st.session_state.tasks):
-    with st.expander(f"Tarea {i+1}", expanded=True):
+    with st.expander(f"{T['task_placeholder']} {i+1}", expanded=True):
         col_nombre, col_fecha, col_dificultad, col_energia = st.columns([2, 1, 1, 1])
         
         with col_nombre:
-            tarea = st.text_input("Nombre de la Tarea:", key=f'tarea_{i}', value=f"Tarea Pendiente {i+1}")
+            tarea = st.text_input(T["task_name"], key=f'tarea_{i}', value=f"{T['task_placeholder']} {i+1}")
         with col_fecha:
-            fecha_limite = st.date_input("Fecha Límite:", key=f'fechaLimite_{i}', value=datetime.date.today() + datetime.timedelta(days=7))
+            fecha_limite = st.date_input(T["task_due"], key=f'fechaLimite_{i}', value=datetime.date.today() + datetime.timedelta(days=7))
         with col_dificultad:
-            dificultad = st.slider("Dificultad (1-10):", min_value=1, max_value=10, value=5, key=f'dificultad_{i}', help="Impacto cognitivo: 1 (Fácil) a 10 (Muy Difícil).")
+            dificultad = st.slider(T["task_difficulty"], min_value=1, max_value=10, value=5, key=f'dificultad_{i}', help=T["difficulty_help"])
         with col_energia:
-            energia = st.selectbox("Req. de Energía:", ["Alto", "Medio", "Bajo"], key=f'energia_{i}', help="¿Cuánta energía mental te pide esta tarea?")
+            energia = st.selectbox(T["task_energy"], T["energy_options"], key=f'energia_{i}')
             
         task_data.append({
             "tarea": tarea,
@@ -295,17 +419,17 @@ for i, task in enumerate(st.session_state.tasks):
 st.markdown("---")
 col_add, col_remove = st.columns([1, 1])
 with col_add:
-    st.button("➕ Agregar Tarea Adicional", on_click=add_task, use_container_width=True)
+    st.button(T["add_task"], on_click=add_task, use_container_width=True)
 with col_remove:
     if st.session_state.tasks and len(st.session_state.tasks) > 1:
-        st.button("➖ Eliminar Última Tarea", on_click=lambda: st.session_state.tasks.pop(), use_container_width=True)
+        st.button(T["remove_task"], on_click=lambda: st.session_state.tasks.pop(), use_container_width=True)
 
 
 # Botón de Ejecución Final
 st.markdown("---")
-if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_width=True):
+if st.button(T["generate_button"], type="primary", use_container_width=True):
     if not task_data:
-        st.warning("Por favor, agregue al menos una tarea.")
+        st.warning(T["warning_no_task"])
     else:
         # Construir el texto plano de tareas para el Prompt
         task_list_text = ""
@@ -313,25 +437,25 @@ if st.button("🚀 Generar Plan Optimizando", type="primary", use_container_widt
             task_list_text += f"Tarea {i + 1}: {t['tarea']} (Límite: {t['fechaLimite']}, Dificultad: {t['dificultad']}/10, Energía: {t['energia']})\n"
 
         # Ensamblar y Llamar a Gemini con las variables de la barra lateral
-        prompt = ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados)
+        prompt = ensamblar_prompt_multi(task_list_text, horas_disponibles, mejor_momento, dias_bloqueados, st.session_state.idioma)
         
-        with st.spinner('✨ Cargando... Generando la estrategia óptima con IA. Esto puede tardar unos segundos.'):
+        with st.spinner(T["spinner_msg"]):
             resultado_ia = llamar_gemini(prompt, ia_temperature) 
 
         # Mostrar Resultado
         if resultado_ia:
-            st.header("📋 Plan de Estudio Generado")
-            st.success("✅ Planificación Generada con Éxito") 
+            st.header(T["result_header"])
+            st.success(T["result_success"]) 
             
             # --- MOSTRAR BOTÓN DE DESCARGA JUNTO A LA RESPUESTA ---
             col_msg, col_download = st.columns([3, 1])
             with col_msg:
-                 st.caption("Asegúrate de que el plan se haya generado como una tabla Markdown antes de descargar.")
+                 st.caption(T["download_caption"])
             
             with col_download:
                 csv_data = markdown_to_csv(resultado_ia)
                 st.download_button(
-                    label="📥 Descargar CSV",
+                    label=T["download_button"],
                     data=csv_data,
                     file_name='plan_dinamico.csv',
                     mime='text/csv',
