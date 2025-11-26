@@ -4,43 +4,24 @@ from google.genai.errors import APIError
 import os
 import datetime
 
-# --- A. CONFIGURACIÓN VISUAL (DARK MODE y Tematización) ---
+# --- A. CONFIGURACIÓN VISUAL (Tematización Dinámica) ---
 
-# Paleta Dark Mode: Negro (#121212), Gris Oscuro (#1E1E1E), Azul Acero (#BB86FC)
-Dark_Mode_CSS = """
-<style>
-/* 1. Fondo principal y contenedores */
-.stApp {
-    background-color: #121212; /* Fondo Negro Oscuro */
-    color: white;
+# Paletas de Colores
+PALETA_CLARA = {
+    "fondo_principal": "#FFFFFF",
+    "fondo_secundario": "#F8F9FA",
+    "texto": "#343A40",
+    "acento": "#007BFF", # Azul Eficiencia
+    "acento_tabla": "#007BFF"
 }
-/* 2. Contenedores y Expander (elementos tipo "tarjeta") */
-.stContainer, .stExpander {
-    background-color: #1E1E1E !important; /* Gris Oscuro Suave */
-    border-radius: 10px; 
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); /* Sombra para profundidad */
-    padding: 20px;
-    color: white;
-}
-/* 3. Títulos y texto (asegura el contraste) */
-h1, h2, h3, h4, label, p, .stMarkdown {
-    color: white !important;
-}
-/* 4. Estilo de los encabezados de la tabla generada por la IA */
-table th {
-    background-color: #BB86FC; /* Color de acento púrpura */
-    color: black;
-}
-/* 5. Estilo de los Inputs (para que se vean bien en fondo oscuro) */
-div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-baseweb="textarea"] > div {
-    background-color: #2D2D2D !important;
-    border-color: #444444 !important;
-    color: white !important;
-}
-</style>
-"""
-st.markdown(Dark_Mode_CSS, unsafe_allow_html=True)
 
+PALETA_OSCURA = {
+    "fondo_principal": "#121212",
+    "fondo_secundario": "#1E1E1E",
+    "texto": "#FFFFFF",
+    "acento": "#BB86FC", # Púrpura/Azul Acero
+    "acento_tabla": "#BB86FC"
+}
 
 # Configuración de la página
 st.set_page_config(
@@ -49,6 +30,51 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="auto"
 )
+
+# 1. Selector de Tema en la Barra Lateral
+with st.sidebar:
+    st.header("Ajustes de Tema")
+    theme_choice = st.selectbox("Elige un Modo:", ["Modo Claro ☀️", "Modo Oscuro 🌑"])
+
+# 2. Asignación de Paleta
+if theme_choice == "Modo Claro ☀️":
+    PALETA = PALETA_CLARA
+else:
+    PALETA = PALETA_OSCURA
+
+# 3. Inyección de CSS (Asegura la adaptabilidad)
+dynamic_css = f"""
+<style>
+/* 1. Fondo principal y texto general */
+.stApp {{
+    background-color: {PALETA['fondo_principal']}; 
+    color: {PALETA['texto']} !important;
+}}
+/* 2. Contenedores y Expander (elementos tipo "tarjeta") */
+.stContainer, .stExpander, div[data-testid="stExpander"] {{
+    background-color: {PALETA['fondo_secundario']} !important; 
+    border-radius: 10px; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+    padding: 20px;
+}}
+/* 3. Títulos, Labels y texto */
+h1, h2, h3, h4, label, p, .stMarkdown, .st-ag {{
+    color: {PALETA['texto']} !important;
+}}
+/* 4. Estilo de los encabezados de la tabla generada por la IA */
+table th {{
+    background-color: {PALETA['acento_tabla']}; 
+    color: {PALETA_CLARA['texto']} !important; /* Siempre negro/oscuro para buen contraste en el encabezado */
+}}
+/* 5. Inputs y selectores de fondo */
+div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-baseweb="textarea"] > div {{
+    background-color: {PALETA['fondo_principal']} !important;
+    border-color: {PALETA['texto']}20 !important; /* Borde suave */
+    color: {PALETA['texto']} !important;
+}}
+</style>
+"""
+st.markdown(dynamic_css, unsafe_allow_html=True)
 
 
 # --- B. LÓGICA DE LA APLICACIÓN ---
@@ -108,7 +134,7 @@ def llamar_gemini(prompt):
         st.error(f"🚨 Error inesperado: {e}")
         return None
 
-# --- C. INTERFAZ DE STREAMLIT (Con Estilo Oscuro) ---
+# --- C. INTERFAZ DE STREAMLIT (Con Estilo Dinámico) ---
 
 st.title("🗓️ Planificador Dinámico con IA")
 st.markdown("Optimiza tu tiempo de estudio con un plan semanal basado en tus recursos y la dificultad de tus tareas.")
